@@ -44,7 +44,7 @@
   },
   "homepage": "https://github.com/platformsh/demo-project#readme",
   "dependencies": {
-    "cross-env": "^7.0.3"
+    "cross-env": "^10.1.0"
   },
   "engines": {
     "node": ">=18.0.0"
