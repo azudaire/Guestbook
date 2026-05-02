@@ -1,0 +1,80 @@
+name: Node.js CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+env:
+  MAX_HIGH: 0
+  MAX_CRITICAL: 0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        # These versions match Upsun support
+        #   Node.js: https://docs.upsun.com/languages/nodejs.html#supported-versions
+        node-version: [22.x]
+        #   Python: https://docs.upsun.com/languages/python.html#supported-versions
+        python-version: ['3.12']
+
+    steps:
+      ################################################################################################
+      # A. Setup workflow.
+      - name: "Retrieve local files."
+        uses: actions/checkout@v4
+        with:
+            ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Set up Node.js."
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: "Python."
+        uses: actions/setup-python@v4 
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: latest 
+      - name: "Install bun"
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: "Install application dependencies"
+        run: |
+          echo "::notice::Running react-scripts tests."
+          export CI=true
+          bun install
+      - name: "5. Verifying backend code is pretty"
+        run: bun run prettier:backend
+      - name: "6. Verifying frontend code is pretty"
+        run: bun run prettier:frontend
+      - name: "7. Linting frontend"
+        run: bun run lint:frontend
+      - name: "8. Run Frontend tests"
+        run: bun run test:frontend
+      - name: "9. Run Backend linting"
+        run: bun run lint:backend
+
+      ################################################################################################
+      # C. Ensure no vulnerabilities.
+      - name: "10. Test: there should be no Python vulnerabilities."
+        run: |
+          echo "::notice::Checking for vulnerabilities in backend Python app dependencies."
+          bun run test:backend
+      - name: "11. Test: there should be no HIGH Node.js vulnerabilities."
+        run: |
+          echo "::notice::Checking HIGH vulnerabilities (bun audit)."
+          cd frontend
+          export CI=true
+          bun audit --audit-level=high
+      - name: "12. Test: there should be no CRITICAL Node.js vulnerabilities."
+        run: |
+          echo "::notice::Checking CRITICAL vulnerabilities (bun audit)."
+          cd frontend
+          export CI=true
+          bun audit --audit-level=critical
